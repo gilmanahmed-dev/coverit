@@ -520,37 +520,61 @@
                 downloadPDF() {
                     this.isGenerating = true;
                     this.$nextTick(() => {
-                        const element = document.getElementById('pdf-content');
+                        const original = document.getElementById('pdf-content');
+
+                        // Clean, unscaled clone placed off-screen at exact A4 size
+                        const clone = original.cloneNode(true);
+                        clone.removeAttribute('id');
+                        clone.style.cssText =
+                            'transform: none; position: static; margin: 0; ' +
+                            'width: 210mm; height: 296mm; min-height: 296mm; max-height: 296mm; ' +
+                            'box-shadow: none;';
+
+                        const wrapper = document.createElement('div');
+                        wrapper.style.cssText =
+                            'position: fixed; top: 0; left: -10000px; width: 210mm; height: 296mm; ' +
+                            'overflow: hidden; background: #ffffff;';
+                        wrapper.appendChild(clone);
+                        document.body.appendChild(wrapper);
+
+                        const cleanup = () => {
+                            if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+                            this.isGenerating = false;
+                        };
+
                         const opt = {
                             margin:       0,
                             filename:     `Assignment_Cover_${this.form.assignmentNo || '01'}_${this.form.courseCode || 'Course'}.pdf`,
                             image:        { type: 'jpeg', quality: 0.98 },
-                            html2canvas:  { 
-                                scale: 2, 
-                                useCORS: true, 
+                            html2canvas:  {
+                                scale: 2,
+                                useCORS: true,
                                 letterRendering: true,
-                                scrollY: 0,
                                 scrollX: 0,
-                                windowWidth: 1200
+                                scrollY: 0,
+                                x: 0,
+                                y: 0,
+                                windowWidth: 794,
+                                windowHeight: 1123
                             },
-                            jsPDF:        { 
-                                unit: 'mm', 
-                                format: 'a4', 
-                                orientation: 'portrait' 
+                            jsPDF:        {
+                                unit: 'mm',
+                                format: 'a4',
+                                orientation: 'portrait'
                             },
                             pagebreak:    { mode: ['avoid-all'] }
                         };
 
-                        html2pdf().from(element).set(opt).toPdf().get('pdf').then((pdf) => {
+                        html2pdf().from(clone).set(opt).toPdf().get('pdf').then((pdf) => {
                             // Guard against extra blank page creation
                             while (pdf.internal.getNumberOfPages() > 1) {
                                 pdf.deletePage(pdf.internal.getNumberOfPages());
                             }
                         }).save().then(() => {
-                            this.isGenerating = false;
+                            cleanup();
                         }).catch(err => {
                             console.error(err);
-                            this.isGenerating = false;
+                            cleanup();
                             alert('Error generating PDF. Please try again.');
                         });
                     });
