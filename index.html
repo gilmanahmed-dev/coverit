@@ -30,7 +30,11 @@
         /* Strict single A4 dimensions: 210mm x 296mm to prevent overflow */
         .a4-page {
             width: 210mm;
+            min-width: 210mm;
+            max-width: 210mm;
             height: 296mm;
+            min-height: 296mm;
+            max-height: 296mm;
             box-sizing: border-box;
             padding: 12mm 14mm;
             background: #ffffff;
@@ -41,6 +45,22 @@
             position: relative;
             overflow: hidden;
             margin: 0 auto;
+            flex-shrink: 0;
+        }
+
+        .preview-viewport {
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            justify-content: center;
+        }
+
+        .preview-stage {
+            box-sizing: border-box;
+            position: relative;
+            flex-shrink: 0;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         @media print {
@@ -54,7 +74,23 @@
             .no-print {
                 display: none !important;
             }
+            .preview-viewport,
+            .preview-stage {
+                width: auto !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                display: block !important;
+            }
             .a4-page {
+                width: 210mm !important;
+                height: 296mm !important;
+                min-width: 210mm !important;
+                min-height: 296mm !important;
+                transform: none !important;
+                position: static !important;
                 margin: 0 !important;
                 box-shadow: none !important;
                 border: none !important;
@@ -65,7 +101,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between py-6 md:py-10" 
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between py-6 md:py-10 overflow-x-hidden" 
       x-data="coverApp()">
 
     <!-- Main Content Area -->
@@ -75,10 +111,10 @@
         <div x-show="step === 1" class="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-10 max-w-3xl mx-auto">
             <div class="mb-8 border-b border-slate-100 pb-4">
                 <h2 class="text-2xl font-bold text-slate-900">Assignment Cover Page Generator</h2>
-                <p class="text-sm text-slate-500 mt-1">Fill out the details below to generate your professional academic cover page.</p>
+                <p class="text-sm text-slate-500 mt-1">Fill out the details below to generate the cover page</p>
             </div>
 
-            <form @submit.prevent="step = 2" class="space-y-8">
+            <form @submit.prevent="goToPreview()" class="space-y-8">
                 
                 <!-- Assignment Info -->
                 <div>
@@ -136,7 +172,9 @@
                 </div>
 
                 <!-- Submitted By -->
+
                 <div>
+                    
                     <h3 class="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
                         <span class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs">3</span>
                         Submitted By (Student)
@@ -182,33 +220,98 @@
         </div>
 
         <!-- STEP 2: PREVIEW & DOWNLOAD -->
-        <div x-show="step === 2" class="flex flex-col items-center">
+        <div x-show="step === 2" class="flex flex-col items-center w-full">
             
-            <!-- Navigation Toolbar -->
-            <div class="no-print w-full max-w-[210mm] flex justify-between items-center mb-4">
-                <button @click="step = 1" 
-                        class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
-                    Back to Edit
-                </button>
-                <div class="flex items-center gap-3">
-                    <button @click="printPage()" 
-                            class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                        Print / Save PDF
+            <!-- Navigation & Action Toolbar -->
+            <div class="no-print w-full max-w-[210mm] mb-4 space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <!-- Back Button -->
+                    <button @click="step = 1" 
+                            class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium px-3.5 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-1.5 active:bg-slate-100">
+                        <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+                        <span>Back to Edit</span>
                     </button>
-                    <button @click="downloadPDF" :disabled="isGenerating"
-                            class="bg-black hover:bg-slate-800 text-white font-medium px-6 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50">
-                        <svg x-show="!isGenerating" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        <span x-show="isGenerating">Generating PDF...</span>
-                        <span x-show="!isGenerating">Download PDF</span>
-                    </button>
+
+                    <!-- Zoom Controls -->
+                    <div class="flex items-center bg-white border border-slate-300 rounded-lg shadow-sm p-1 text-xs">
+                        <button @click="zoomOut()" title="Zoom Out"
+                                class="p-1 hover:bg-slate-100 rounded text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                                :disabled="previewScale <= 0.35">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"></path></svg>
+                        </button>
+                        <button @click="toggleFitOrFull()" 
+                                class="px-2 py-0.5 font-semibold text-slate-800 hover:text-black transition-colors"
+                                :title="isFitMode ? 'Click to view at 100% (Actual Size)' : 'Click to fit whole page on screen'">
+                            <span x-text="zoomDisplay"></span>
+                        </button>
+                        <button @click="zoomIn()" title="Zoom In"
+                                class="p-1 hover:bg-slate-100 rounded text-slate-600 disabled:opacity-30 disabled:hover:bg-transparent"
+                                :disabled="previewScale >= 1.4">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                        </button>
+                        <button @click="fitToScreen()" 
+                                :class="isFitMode ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                class="px-2 py-1 rounded text-[11px] font-medium transition-colors ml-1">
+                            Fit
+                        </button>
+                        <button @click="actualSize()" 
+                                :class="(!isFitMode && Math.abs(previewScale - 1) < 0.05) ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                class="px-2 py-1 rounded text-[11px] font-medium transition-colors">
+                            100%
+                        </button>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button @click="printPage()" 
+                                class="flex-1 sm:flex-initial bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-2 active:bg-slate-100">
+                            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>Print / Save</span>
+                        </button>
+                        <button @click="downloadPDF" :disabled="isGenerating"
+                                class="flex-1 sm:flex-initial bg-black hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 active:bg-slate-900">
+                            <svg x-show="!isGenerating" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <svg x-show="isGenerating" class="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span x-show="isGenerating">Generating...</span>
+                            <span x-show="!isGenerating">Download PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Helper tip on mobile when zoomed in -->
+                <div x-show="!isFitMode && previewScale > fitScale" class="text-center text-xs text-slate-500 py-0.5 sm:hidden" x-cloak>
+                    Tip: Scroll sideways and vertically to explore the full-size A4 sheet
                 </div>
             </div>
 
-            <!-- A4 Preview Sheet Container -->
-            <div class="overflow-x-auto w-full flex justify-center shadow-lg pb-6">
-                <div id="pdf-content" class="a4-page academic-font">
+            <!-- A4 Preview Viewport (handles scroll when zoomed) -->
+            <div x-ref="previewViewport" 
+                 :class="(!isFitMode && previewScale > fitScale) ? 'overflow-x-auto pb-6' : 'overflow-hidden pb-6'" 
+                 class="preview-viewport w-full">
+                <!-- Preview Stage: Constrains exact scaled bounds -->
+                <div class="preview-stage shadow-xl rounded-sm overflow-hidden transition-[width,height] duration-150 ease-out"
+                     :style="stageStyle">
+                     
+                    <!-- Loading overlay for generation -->
+                    <div x-show="isGenerating" 
+                         class="absolute inset-0 bg-white/70 backdrop-blur-[1px] z-30 flex items-center justify-center rounded shadow-lg" 
+                         x-cloak>
+                        <div class="bg-black/90 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span class="text-sm font-semibold tracking-wide">Creating high-res PDF...</span>
+                        </div>
+                    </div>
+
+                    <!-- The Actual A4 Sheet Content -->
+                    <div id="pdf-content" 
+                         class="a4-page academic-font" 
+                         :style="contentStyle">
                     
                     <!-- Outer Decorative Academic Frame: Square, classic double border style -->
                     <div class="border-[2px] border-black p-8 h-full flex flex-col justify-between box-border">
@@ -296,11 +399,10 @@
                         </div>
 
                     </div>
-
                 </div>
             </div>
-
         </div>
+    </div>
 
     </main>
 
@@ -315,6 +417,11 @@
             return {
                 step: 1,
                 isGenerating: false,
+                previewScale: 1,
+                fitScale: 1,
+                isFitMode: true,
+                baseWidth: 794,
+                baseHeight: 1119,
                 form: {
                     assignmentNo: '',
                     courseName: '',
@@ -329,6 +436,79 @@
                     studentId: '',
                     date: ''
                 },
+                init() {
+                    this.$nextTick(() => {
+                        this.updateFitScale();
+                    });
+                    window.addEventListener('resize', () => {
+                        this.updateFitScale();
+                    });
+                },
+                goToPreview() {
+                    this.step = 2;
+                    this.isFitMode = true;
+                    this.$nextTick(() => {
+                        this.updateFitScale();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    });
+                },
+                updateFitScale() {
+                    const maxAvailable = Math.min(window.innerWidth - 32, 794);
+                    const viewport = this.$refs.previewViewport;
+                    const availableWidth = viewport ? Math.min(viewport.clientWidth, maxAvailable) : maxAvailable;
+                    
+                    if (availableWidth > 0) {
+                        const calculated = Math.min(availableWidth / this.baseWidth, 1);
+                        this.fitScale = Math.max(0.25, Math.round(calculated * 1000) / 1000);
+                        
+                        if (this.isFitMode) {
+                            this.previewScale = this.fitScale;
+                        }
+                    }
+                },
+                fitToScreen() {
+                    this.isFitMode = true;
+                    this.updateFitScale();
+                },
+                actualSize() {
+                    this.isFitMode = false;
+                    this.previewScale = 1;
+                },
+                toggleFitOrFull() {
+                    if (this.isFitMode) {
+                        this.actualSize();
+                    } else {
+                        this.fitToScreen();
+                    }
+                },
+                zoomIn() {
+                    this.isFitMode = false;
+                    this.previewScale = Math.min(1.4, Math.round((this.previewScale + 0.1) * 10) / 10);
+                },
+                zoomOut() {
+                    this.isFitMode = false;
+                    this.previewScale = Math.max(0.35, Math.round((this.previewScale - 0.1) * 10) / 10);
+                },
+                get zoomDisplay() {
+                    if (this.isFitMode) {
+                        return `Fit (${Math.round(this.previewScale * 100)}%)`;
+                    }
+                    return `${Math.round(this.previewScale * 100)}%`;
+                },
+                get stageStyle() {
+                    if (this.isGenerating) {
+                        return `width: ${this.baseWidth}px; height: ${this.baseHeight}px; position: relative;`;
+                    }
+                    const w = Math.round(this.baseWidth * this.previewScale);
+                    const h = Math.round(this.baseHeight * this.previewScale);
+                    return `width: ${w}px; height: ${h}px; position: relative;`;
+                },
+                get contentStyle() {
+                    if (this.isGenerating) {
+                        return 'transform: none; position: static; width: 210mm; height: 296mm;';
+                    }
+                    return 'transform: scale(' + this.previewScale + '); transform-origin: 0 0; position: absolute; left: 0; top: 0; width: 210mm; height: 296mm;';
+                },
                 formatDate(dateString) {
                     if (!dateString) return '';
                     const options = { year: 'numeric', month: 'long', day: 'numeric' };
@@ -339,37 +519,40 @@
                 },
                 downloadPDF() {
                     this.isGenerating = true;
-                    const element = document.getElementById('pdf-content');
-                    const opt = {
-                        margin:       0,
-                        filename:     `Assignment_Cover_${this.form.assignmentNo || '01'}_${this.form.courseCode || 'Course'}.pdf`,
-                        image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { 
-                            scale: 2, 
-                            useCORS: true, 
-                            letterRendering: true,
-                            scrollY: 0,
-                            scrollX: 0
-                        },
-                        jsPDF:        { 
-                            unit: 'mm', 
-                            format: 'a4', 
-                            orientation: 'portrait' 
-                        },
-                        pagebreak:    { mode: ['avoid-all'] }
-                    };
+                    this.$nextTick(() => {
+                        const element = document.getElementById('pdf-content');
+                        const opt = {
+                            margin:       0,
+                            filename:     `Assignment_Cover_${this.form.assignmentNo || '01'}_${this.form.courseCode || 'Course'}.pdf`,
+                            image:        { type: 'jpeg', quality: 0.98 },
+                            html2canvas:  { 
+                                scale: 2, 
+                                useCORS: true, 
+                                letterRendering: true,
+                                scrollY: 0,
+                                scrollX: 0,
+                                windowWidth: 1200
+                            },
+                            jsPDF:        { 
+                                unit: 'mm', 
+                                format: 'a4', 
+                                orientation: 'portrait' 
+                            },
+                            pagebreak:    { mode: ['avoid-all'] }
+                        };
 
-                    html2pdf().from(element).set(opt).toPdf().get('pdf').then((pdf) => {
-                        // Guard against extra blank page creation
-                        while (pdf.internal.getNumberOfPages() > 1) {
-                            pdf.deletePage(pdf.internal.getNumberOfPages());
-                        }
-                    }).save().then(() => {
-                        this.isGenerating = false;
-                    }).catch(err => {
-                        console.error(err);
-                        this.isGenerating = false;
-                        alert('Error generating PDF. Please try again.');
+                        html2pdf().from(element).set(opt).toPdf().get('pdf').then((pdf) => {
+                            // Guard against extra blank page creation
+                            while (pdf.internal.getNumberOfPages() > 1) {
+                                pdf.deletePage(pdf.internal.getNumberOfPages());
+                            }
+                        }).save().then(() => {
+                            this.isGenerating = false;
+                        }).catch(err => {
+                            console.error(err);
+                            this.isGenerating = false;
+                            alert('Error generating PDF. Please try again.');
+                        });
                     });
                 }
             }
